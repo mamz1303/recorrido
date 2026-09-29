@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4b1f6f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Señor de los Milagros">
 <title>Señor de los Milagros: recorrido en vivo</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,6 +62,32 @@ h2{margin:0 0 10px;font-size:1.05rem}
 .vista{position:absolute;top:14px;right:14px;z-index:500;display:flex;gap:6px}
 .vista button{min-height:38px;padding:6px 10px;font-size:.85rem;background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .vista button.on{background:var(--morado-2);border-color:var(--morado-2);color:#fff}
+/* ---- pantalla completa ---- */
+.fs-head,.hoja{display:none}
+.btn-amp{position:absolute;right:14px;bottom:30px;z-index:500;min-height:40px;padding:6px 12px;font-size:.85rem;background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+body.fs{overflow:hidden}
+body.fs .col-map{position:fixed;inset:0;z-index:2000;margin:0;padding:0;border:0;border-radius:0;background:#222}
+body.fs .fs-head{display:flex;align-items:center;gap:8px;position:absolute;top:0;left:0;right:0;z-index:1100;background:var(--morado);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 8px}
+.fs-head button{background:transparent;border:0;color:#fff;font-size:1.6rem;line-height:1;min-width:44px;min-height:44px;padding:0}
+.fs-head b{flex:1;text-align:center;font-size:1rem;font-weight:800;line-height:1.2;margin-right:44px}
+body.fs #mapa{position:absolute;left:0;right:0;bottom:0;top:var(--headH,60px);height:auto;border-radius:0}
+body.fs .vista{top:calc(var(--headH,60px) + 10px)}
+body.fs .btn-amp{display:none}
+body.fs .leaflet-bottom{bottom:var(--hojaH,120px)}
+body.fs .hoja{display:block;position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:1100;background:var(--card);color:var(--ink);border-radius:18px;box-shadow:0 -2px 16px rgba(0,0,0,.35);padding:6px 14px 12px;max-height:calc(100% - var(--headH,60px) - 24px);display:flex;flex-direction:column}
+body:not(.fs) .hoja{display:none}
+.asa{width:44px;height:5px;border-radius:3px;background:var(--gris);margin:4px auto 8px;border:0;padding:0;min-height:0;display:block;cursor:pointer}
+.h-fila{display:flex;align-items:center;gap:10px}
+.h-num{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--morado-2);color:#fff}
+.h-num.aqui{background:var(--oro);color:#22182b}
+.h-tit{font-weight:800;font-size:1.1rem;line-height:1.2}
+.h-sub{font-size:.85rem;color:var(--muted)}
+.h-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.h-meta b{font-size:1rem}
+.h-meta button{min-height:40px;padding:6px 12px;font-size:.9rem;background:var(--morado-soft);border-color:var(--morado-soft)}
+.h-aviso{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--morado-soft);font-weight:600;font-size:.9rem}
+.h-lista{overflow:auto;margin-top:10px;display:none;-webkit-overflow-scrolling:touch}
+.hoja.abierta .h-lista{display:block;flex:1;min-height:0}
 .stp{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:800 12px/1 "Archivo",system-ui,sans-serif;border:3px solid #fff;background:#fff;color:#22182b;box-shadow:0 1px 4px rgba(0,0,0,.5)}
 .stp.hecho{background:#6a34a0;color:#fff}
 .stp.origen{background:#6a34a0;color:#fff;border-color:#e5a910;width:30px;height:30px;font-size:13px}
@@ -112,10 +143,32 @@ select,input[type=text],input[type=password]{font:inherit;font-size:1rem;border:
   </section>
 
   <section class="col-map">
+    <div class="fs-head" id="fsHead">
+      <button id="btnSalir" aria-label="Salir de pantalla completa">‹</button>
+      <b>Señor de los Milagros: recorrido en vivo</b>
+    </div>
     <div id="mapa" aria-label="Mapa del recorrido"></div>
     <div class="vista">
       <button id="vSeguir" class="on">Seguir tramo</button>
       <button id="vTodo">Toda la ruta</button>
+    </div>
+    <button class="btn-amp" id="btnAmp">⤢ Pantalla completa</button>
+    <div class="hoja" id="hoja">
+      <button class="asa" id="asa" aria-label="Mostrar u ocultar detalle"></button>
+      <div class="h-fila">
+        <span class="h-num" id="hNum">1</span>
+        <div><div class="h-tit" id="hTit">Esperando señal…</div><div class="h-sub" id="hSub"></div></div>
+      </div>
+      <div class="h-aviso" id="hAviso" hidden></div>
+      <div class="h-meta">
+        <div><span id="hBadge" class="badge"><i></i><span id="hBadgeTxt"></span></span><div class="h-sub" style="margin-top:4px">Transmite: <b id="hFuente">nadie</b></div></div>
+        <div style="text-align:right"><b id="hFalta">—</b><div class="h-sub" id="hLlega"></div></div>
+      </div>
+      <div class="h-meta" style="border-top:0;padding-top:0">
+        <span class="h-sub">Paradas y horas estimadas</span>
+        <button id="btnDetalle">Ver detalle</button>
+      </div>
+      <div class="h-lista" id="hLista"></div>
     </div>
   </section>
 
@@ -358,7 +411,8 @@ function encuadrar(E,forzar){
     if(V.src&&V.src.lat)b.extend([V.src.lat,V.src.lon]);
   }
   const k=b.toBBoxString();if(!forzar&&k===ultimoEncuadre)return;ultimoEncuadre=k;
-  mover(()=>map.fitBounds(b,{padding:[40,40],maxZoom:18,animate:true}));
+  const abajo=document.body.classList.contains('fs')?(document.getElementById('hoja').offsetHeight||0):0;
+  mover(()=>map.fitBounds(b,{paddingTopLeft:[40,50],paddingBottomRight:[40,40+abajo],maxZoom:18,animate:true}));
 }
 
 // ---------- interfaz ----------
@@ -412,8 +466,59 @@ function render(){
   const o=Object.values(EM).find(e=>e!==V.src&&ahora()-e.t<=120);
   if(o&&V.src)otro.setLatLng([o.lat,o.lon]).bindTooltip(o.name+' (no se sigue)').addTo(map);else map.removeLayer(otro);
   encuadrar(E,false);
+  // hoja inferior (pantalla completa)
+  if(document.body.classList.contains('fs')){
+    const n=E.aqui||E.prox;
+    $('hNum').textContent=n||'✓';$('hNum').className='h-num'+(E.aqui?' aqui':'');
+    $('hTit').textContent=E.titulo;$('hSub').textContent=E.sub;
+    $('hBadge').className=$('badge').className;$('hBadgeTxt').textContent=$('badgeTxt').textContent;
+    $('hFuente').textContent=$('fuente').textContent;
+    $('hFalta').textContent=$('eta1').textContent;
+    $('hLlega').textContent=$('eta2').textContent==='—'?'':$('etaL2').textContent+': '+$('eta2').textContent;
+    const ha=$('hAviso');if(at){ha.hidden=false;ha.textContent=at;}else ha.hidden=true;
+    medirFs();
+  }
   if(Date.now()-selTocado>15000&&document.activeElement!==sel){const sug=E.aqui||E.prox||1;sel.value=sug;}
 }
+
+// ---------- pantalla completa ----------
+const listaSec=lista.parentNode,listaSig=lista.nextSibling;
+function medirFs(){
+  const r=document.documentElement.style;
+  r.setProperty('--headH',$('fsHead').offsetHeight+'px');
+  const hoja=$('hoja');const alto=hoja.classList.contains('abierta')?hoja.querySelector('.h-meta').offsetTop+60:hoja.offsetHeight;
+  r.setProperty('--hojaH',(alto+16)+'px');
+}
+function abrirFs(conHistorial=true){
+  if(document.body.classList.contains('fs'))return;
+  document.body.classList.add('fs');$('hLista').appendChild(lista);
+  if(conHistorial)try{history.pushState({fs:1},'');}catch(e){}
+  render();medirFs();
+  setTimeout(()=>{map.invalidateSize();ultimoEncuadre='';encuadrar(estado(),true);},60);
+}
+function cerrarFs(desdeHistorial=false){
+  if(!document.body.classList.contains('fs'))return;
+  document.body.classList.remove('fs');$('hoja').classList.remove('abierta');$('btnDetalle').textContent='Ver detalle';
+  listaSec.insertBefore(lista,listaSig);
+  if(!desdeHistorial&&history.state&&history.state.fs)try{history.back();}catch(e){}
+  setTimeout(()=>{map.invalidateSize();ultimoEncuadre='';encuadrar(estado(),true);},60);
+}
+function alternarHoja(abrir){
+  const h=$('hoja');const a=abrir===undefined?!h.classList.contains('abierta'):abrir;
+  h.classList.toggle('abierta',a);$('btnDetalle').textContent=a?'Ocultar detalle':'Ver detalle';
+  medirFs();
+}
+$('btnAmp').onclick=()=>abrirFs();
+$('btnSalir').onclick=()=>cerrarFs();
+$('btnDetalle').onclick=()=>alternarHoja();
+$('asa').onclick=()=>alternarHoja();
+window.addEventListener('popstate',()=>cerrarFs(true));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')cerrarFs();});
+window.addEventListener('resize',()=>{if(document.body.classList.contains('fs'))medirFs();});
+// deslizar la hoja hacia arriba o abajo
+let y0=null;
+$('hoja').addEventListener('touchstart',e=>{if(e.target.closest('.h-lista'))return;y0=e.touches[0].clientY;},{passive:true});
+$('hoja').addEventListener('touchend',e=>{if(y0===null)return;const dy=e.changedTouches[0].clientY-y0;y0=null;if(dy<-30)alternarHoja(true);else if(dy>30)alternarHoja(false);},{passive:true});
 
 // ---------- panel del emisor (index.html#panel) ----------
 let clave='';try{clave=localStorage.getItem('clave_recorrido')||'';}catch(e){}
