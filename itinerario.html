@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Itinerario del recorrido</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f3f9; --card:#ffffff; --ink:#22182b; --muted:#6c6178; --line:#e4dcea;
+  --morado:#4b1f6f; --morado-2:#6a34a0; --morado-soft:#efe5f7;
+  --oro:#c98f06; --oro-soft:#fbf1d6; --ok:#1d7f4b; --ok-soft:#e1f4e9; --mal:#b3261e; --mal-soft:#fbe4e2;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#141019; --card:#1d1724; --ink:#f0eaf5; --muted:#a89db4; --line:#30273a;
+    --morado:#3a1758; --morado-2:#b28be0; --morado-soft:#2b2037;
+    --oro:#f0b62a; --oro-soft:#3a2f14; --ok:#4cc987; --ok-soft:#173826; --mal:#ff8a80; --mal-soft:#3d1a18;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141019; --card:#1d1724; --ink:#f0eaf5; --muted:#a89db4; --line:#30273a;
+  --morado:#3a1758; --morado-2:#b28be0; --morado-soft:#2b2037;
+  --oro:#f0b62a; --oro-soft:#3a2f14; --ok:#4cc987; --ok-soft:#173826; --mal:#ff8a80; --mal-soft:#3d1a18;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45;font-variant-numeric:tabular-nums}
+header{background:var(--morado);color:#fff;padding:16px}
+header .in,main{max-width:760px;margin:0 auto}
+header h1{margin:0;font-size:1.35rem;font-weight:800;line-height:1.15}
+header p{margin:3px 0 0;font-size:.9rem;opacity:.85}
+main{padding:12px;display:grid;gap:12px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+h2{margin:0 0 12px;font-size:1.05rem}
+.muted{color:var(--muted)}
+/* veredicto */
+.veredicto{position:sticky;top:0;z-index:10;border-width:2px}
+.veredicto.ok{border-color:var(--ok)}
+.veredicto.mal{border-color:var(--mal)}
+.fin-l{font-size:.9rem;color:var(--muted)}
+.fin{font-size:2.6rem;font-weight:800;line-height:1;margin:2px 0 8px;letter-spacing:-.02em}
+.estado{display:inline-block;font-weight:700;font-size:.95rem;padding:6px 12px;border-radius:999px}
+.ok .estado{background:var(--ok-soft);color:var(--ok)}
+.mal .estado{background:var(--mal-soft);color:var(--mal)}
+.resumen{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:.9rem;color:var(--muted)}
+.resumen b{color:var(--ink)}
+/* ajustes */
+.campos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.campos{grid-template-columns:1fr}}
+.campo label{display:block;font-size:.88rem;font-weight:600;margin-bottom:5px}
+.campo small{display:block;color:var(--muted);font-size:.78rem;margin-top:3px}
+input[type=time]{font:inherit;font-size:1.05rem;font-weight:700;width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);padding:6px 10px}
+.paso{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper);min-height:44px}
+.paso button{flex:none;width:44px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1.3rem;font-weight:700;cursor:pointer}
+.paso button:active{background:var(--morado-soft)}
+.paso input{flex:1;min-width:0;width:100%;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1.05rem;font-weight:700;text-align:center}
+.paso span{align-self:center;padding-right:10px;color:var(--muted);font-size:.85rem}
+.aplicar{margin-top:8px;width:100%;min-height:42px;border-radius:10px;border:1px solid var(--morado-2);background:transparent;color:var(--morado-2);font:inherit;font-weight:700;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--oro);outline-offset:2px}
+.fijos p{margin:0 0 10px;font-size:.92rem}
+.fijos p:last-child{margin:0}
+.fijos .fila{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.fijos .fila .muted{font-size:.8rem}
+/* itinerario */
+.linea{list-style:none;margin:0;padding:0}
+.parada{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px 0}
+.num{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.9rem;background:var(--morado-2);color:#fff}
+.parada.extremo .num{background:var(--oro);color:#22182b}
+.p-nom{font-weight:700;line-height:1.25}
+.p-horas{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.92rem;margin-top:3px}
+.p-horas b{font-size:1.05rem}
+.p-dur{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.85rem;color:var(--muted)}
+.p-dur .paso{width:150px;min-height:40px}
+.p-dur .paso button{width:40px}
+.tramo{display:grid;grid-template-columns:34px 1fr;gap:10px;font-size:.85rem;color:var(--muted)}
+.tramo .via{justify-self:center;width:4px;border-radius:2px;background:var(--line);min-height:40px}
+.tramo .via.lenta{background:repeating-linear-gradient(var(--oro) 0 6px,transparent 6px 10px)}
+.tramo .txt{padding:6px 0}
+.tag{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--oro-soft);color:var(--oro);margin-left:4px}
+.pie{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.pie button{min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<header><div class="in">
+  <h1>Itinerario del recorrido</h1>
+  <p>Señor de los Milagros, Cerro Verde. Ajusta los tiempos y mira la hora de llegada.</p>
+</div></header>
+<main>
+  <section class="veredicto ok" id="veredicto" aria-live="polite">
+    <div class="fin-l">Llegada a Almacén 2</div>
+    <div class="fin" id="fin">--:--</div>
+    <span class="estado" id="estado"></span>
+    <div class="resumen">
+      <span>Inicio <b id="rInicio"></b></span>
+      <span>Sale de Almacén 1 <b id="rSale"></b></span>
+      <span>Límite <b id="rLimite"></b></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ajustes</h2>
+    <div class="campos">
+      <div class="campo"><label for="inicio">Hora de inicio en Almacén 1</label><input type="time" id="inicio" value="08:00"></div>
+      <div class="campo"><label for="limite">Hora límite en Almacén 2</label><input type="time" id="limite" value="16:15"></div>
+      <div class="campo"><label for="instLlega">Instalación al llegar</label><div class="paso" data-id="instLlega" data-min="0" data-max="30"></div></div>
+      <div class="campo"><label for="instSale">Instalación al salir</label><div class="paso" data-id="instSale" data-min="0" data-max="30"></div></div>
+      <div class="campo"><label for="dur1">Parada en Almacén 1</label><div class="paso" data-id="dur1" data-min="0" data-max="120"></div></div>
+      <div class="campo"><label for="vel">Velocidad normal</label><div class="paso" data-id="vel" data-min="5" data-max="40" data-unidad="km/h"></div></div>
+      <div class="campo" style="grid-column:1 / -1"><label for="durTodas">Duración de cada parada (de la 2 a la 14)</label><div class="paso" data-id="durTodas" data-min="0" data-max="120"></div>
+        <button class="aplicar" id="aplicar">Aplicar a todas las paradas</button>
+        <small>También puedes cambiar cada parada por separado en el itinerario.</small></div>
+    </div>
+  </section>
+
+  <section class="fijos">
+    <h2>Tramos lentos (fijos a 10 km/h)</h2>
+    <p><b>Tránsito de personal:</b> tramos 8 (Almacén 3 a Gerencia Procesos C1) y 9 (Gerencia Procesos C1 a Taller TRC C1), completos.</p>
+    <p><b>Trochas de ingreso:</b> solo el último trecho antes de estas paradas. El largo es estimado; corrígelo si lo conoces.</p>
+    <div id="trochas"></div>
+  </section>
+
+  <section>
+    <h2>Itinerario</h2>
+    <ol class="linea" id="linea"></ol>
+  </section>
+
+  <section>
+    <div class="pie">
+      <div class="resumen" style="margin:0">
+        <span>En movimiento <b id="tMov"></b></span>
+        <span>En paradas <b id="tPar"></b></span>
+        <span>Instalación <b id="tIns"></b></span>
+        <span>Distancia <b id="tDist"></b></span>
+      </div>
+      <button id="reset">Restablecer valores</button>
+    </div>
+  </section>
+</main>
+<script>
+(function(){
+const D={"lens": [2542, 2364, 400, 2048, 836, 587, 667, 11190, 316, 3098, 647, 5169, 1778, 7002], "names": ["Almacén 1", "Op. Mina - Vestuario Sur", "Mnto. Mina - TruckShop", "Taller de soldadura", "Mnto. C2 Ex Cosapi", "Gerencia Procesos C2", "Laydown", "Almacén 3", "Gerencia Procesos C1", "Taller TRC C1", "Lab. Químico", "Planta SXEW", "Gerencia Hidro", "Camp. Lixiviación", "Almacén 2"]};
+const NOMBRES=D.names, LENS=D.lens, N=NOMBRES.length, NT=LENS.length;
+const LENTO=10;
+const TRANSITO=[7,8];                 // tramos 8 y 9 (índice desde 0)
+const TROCHAS={1:3,3:5,12:14};        // tramo (índice) -> parada a la que ingresa
+const DEF={inicio:'08:00',limite:'16:15',instLlega:3,instSale:2,dur1:15,vel:20,durTodas:12,dur:Array(N).fill(12),trocha:{1:500,3:500,12:500}};
+let C=JSON.parse(JSON.stringify(DEF));
+try{const g=JSON.parse(localStorage.getItem('itin_sdlm')||'null');if(g)C=Object.assign(C,g);}catch(e){}
+function guardar(){try{localStorage.setItem('itin_sdlm',JSON.stringify(C));}catch(e){}}
+
+const $=id=>document.getElementById(id);
+const aMin=hhmm=>{const [h,m]=hhmm.split(':').map(Number);return h*60+m;};
+const hora=min=>{min=Math.round(min);const h=Math.floor(min/60)%24,m=((min%60)+60)%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');};
+const dur=min=>{min=Math.round(min);const h=Math.floor(min/60),m=min%60;return h?h+' h '+String(m).padStart(2,'0')+' min':m+' min';};
+const km=m=>(m/1000).toFixed(1).replace('.',',')+' km';
+
+// control numérico con botones − y +
+function paso(el,valor,onCambio,opts={}){
+  const min=+(opts.min??el.dataset.min??0),max=+(opts.max??el.dataset.max??999),uni=opts.unidad||el.dataset.unidad||'min';
+  el.innerHTML='<button type="button" aria-label="Restar">−</button><input inputmode="numeric" '+(el.dataset.id?'id="'+el.dataset.id+'"':'')+' aria-label="'+(opts.label||uni)+'"><span>'+uni+'</span><button type="button" aria-label="Sumar">+</button>';
+  const [bm,inp,,bp]=el.children;inp.value=valor;
+  const fijar=v=>{v=Math.max(min,Math.min(max,Math.round(+v||0)));inp.value=v;onCambio(v);};
+  bm.onclick=()=>fijar(+inp.value-1);bp.onclick=()=>fijar(+inp.value+1);
+  inp.onchange=()=>fijar(inp.value);inp.onfocus=()=>inp.select();
+  return inp;
+}
+
+function tiempoTramo(i){
+  const L=LENS[i],v=C.vel;
+  if(TRANSITO.includes(i))return {min:L/1000/LENTO*60,lento:'Tránsito de personal, 10 km/h'};
+  if(TROCHAS[i]!==undefined){const t=Math.min(L,C.trocha[i]||0);return {min:(L-t)/1000/v*60+t/1000/LENTO*60,lento:'Trocha: últimos '+t+' m a 10 km/h'};}
+  return {min:L/1000/v*60,lento:null};
+}
+function calcular(){
+  const filas=[];let t=aMin(C.inicio),mov=0,par=0,ins=0;
+  for(let s=0;s<N;s++){
+    const llega=t;
+    if(s===N-1){filas.push({llega});break;}
+    const d=s===0?C.dur1:C.dur[s];
+    const sale=llega+C.instLlega+d+C.instSale;par+=d;ins+=C.instLlega+C.instSale;
+    const tr=tiempoTramo(s);mov+=tr.min;
+    filas.push({llega,sale,d,tr});
+    t=sale+tr.min;
+  }
+  return {filas,fin:t,mov,par,ins};
+}
+
+// ajustes generales
+paso(document.querySelector('[data-id=instLlega]'),C.instLlega,v=>{C.instLlega=v;actualizar();});
+paso(document.querySelector('[data-id=instSale]'),C.instSale,v=>{C.instSale=v;actualizar();});
+paso(document.querySelector('[data-id=dur1]'),C.dur1,v=>{C.dur1=v;actualizar();});
+paso(document.querySelector('[data-id=vel]'),C.vel,v=>{C.vel=v;actualizar();});
+paso(document.querySelector('[data-id=durTodas]'),C.durTodas,v=>{C.durTodas=v;guardar();});
+$('inicio').value=C.inicio;$('limite').value=C.limite;
+$('inicio').onchange=e=>{if(e.target.value){C.inicio=e.target.value;actualizar();}};
+$('limite').onchange=e=>{if(e.target.value){C.limite=e.target.value;actualizar();}};
+$('aplicar').onclick=()=>{for(let s=1;s<N-1;s++){C.dur[s]=C.durTodas;durInputs[s].value=C.durTodas;}actualizar();};
+
+// trochas
+const tb=$('trochas');
+Object.keys(TROCHAS).forEach(i=>{
+  const div=document.createElement('div');div.className='fila';
+  div.innerHTML='<div>Ingreso a la parada '+TROCHAS[i]+', '+NOMBRES[TROCHAS[i]-1]+'<div class="muted">Tramo '+(+i+1)+', de '+km(LENS[i])+'</div></div><div class="paso"></div>';
+  tb.appendChild(div);
+  paso(div.querySelector('.paso'),C.trocha[i],v=>{C.trocha[i]=v;actualizar();},{min:0,max:LENS[i],unidad:'m',label:'Metros de trocha'});
+  div.querySelector('.paso button:first-child').onclick=()=>{const inp=div.querySelector('input');inp.value=Math.max(0,+inp.value-50);inp.onchange();};
+  div.querySelector('.paso button:last-child').onclick=()=>{const inp=div.querySelector('input');inp.value=Math.min(LENS[i],+inp.value+50);inp.onchange();};
+});
+
+// itinerario
+const linea=$('linea');const durInputs=[],horasEls=[],tramoEls=[];
+for(let s=0;s<N;s++){
+  const li=document.createElement('li');li.className='parada'+(s===0||s===N-1?' extremo':'');
+  li.innerHTML='<span class="num">'+(s+1)+'</span><div><div class="p-nom">'+NOMBRES[s]+'</div><div class="p-horas"></div>'+(s>0&&s<N-1?'<div class="p-dur"><div class="paso"></div><span>de parada</span></div>':'')+'</div>';
+  linea.appendChild(li);horasEls[s]=li.querySelector('.p-horas');
+  if(s>0&&s<N-1)durInputs[s]=paso(li.querySelector('.paso'),C.dur[s],v=>{C.dur[s]=v;actualizar();},{min:0,max:120,label:'Minutos de parada en '+NOMBRES[s]});
+  if(s<N-1){const tr=document.createElement('li');tr.className='tramo';tr.innerHTML='<span class="via"></span><div class="txt"></div>';linea.appendChild(tr);tramoEls[s]=tr;}
+}
+
+function actualizar(){
+  guardar();
+  const R=calcular(),lim=aMin(C.limite),dif=lim-R.fin;
+  $('fin').textContent=hora(R.fin);
+  const ok=dif>=0;
+  $('veredicto').className='veredicto '+(ok?'ok':'mal');
+  $('estado').textContent=ok?'Dentro del horario, sobran '+dur(dif):'Fuera de rango: se pasa por '+dur(-dif);
+  $('rInicio').textContent=hora(aMin(C.inicio));$('rSale').textContent=hora(R.filas[0].sale);$('rLimite').textContent=hora(lim);
+  R.filas.forEach((f,s)=>{
+    if(s===0)horasEls[s].innerHTML='<span>Inicio <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span><span class="muted">'+f.d+' min de parada</span>';
+    else if(s===N-1)horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span class="muted">Fin del recorrido</span>';
+    else horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span>';
+    if(s<N-1){
+      const t=tramoEls[s];t.querySelector('.via').className='via'+(f.tr.lento?' lenta':'');
+      t.querySelector('.txt').innerHTML='Tramo '+(s+1)+': '+km(LENS[s])+', '+dur(f.tr.min)+(f.tr.lento?' <span class="tag">'+f.tr.lento+'</span>':'');
+    }
+  });
+  $('tMov').textContent=dur(R.mov);$('tPar').textContent=dur(R.par);$('tIns').textContent=dur(R.ins);
+  $('tDist').textContent=km(LENS.reduce((a,b)=>a+b,0));
+}
+$('reset').onclick=()=>{if(!confirm('¿Volver a los valores iniciales?'))return;try{localStorage.removeItem('itin_sdlm');}catch(e){}location.reload();};
+actualizar();
+})();
+</script>
+</body>
+</html>
