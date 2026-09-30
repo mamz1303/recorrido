@@ -82,6 +82,14 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--oro);outline-of
 .tramo .via.lenta{background:repeating-linear-gradient(var(--oro) 0 6px,transparent 6px 10px)}
 .tramo .txt{padding:6px 0}
 .tag{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--oro-soft);color:var(--oro);margin-left:4px}
+.sel{font:inherit;font-size:1rem;font-weight:600;width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);padding:6px 10px}
+.tag.alm{background:var(--morado-soft);color:var(--morado-2)}
+.exp textarea{width:100%;min-height:220px;font:.85rem/1.4 ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);padding:10px;margin-top:10px}
+.exp .btns{display:flex;flex-wrap:wrap;gap:8px}
+.exp .btns button{min-height:44px;padding:8px 14px;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;border:1px solid var(--morado-2)}
+.exp .pri{background:var(--morado-2);color:#fff}
+.exp .sec{background:transparent;color:var(--morado-2)}
+#copiado{font-size:.9rem;font-weight:600;color:var(--ok);margin-top:6px;min-height:1.2em}
 .pie{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
 .pie button{min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
 </style>
@@ -112,6 +120,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--oro);outline-of
       <div class="campo"><label for="instSale">Instalación al salir</label><div class="paso" data-id="instSale" data-min="0" data-max="30"></div></div>
       <div class="campo"><label for="dur1">Parada en Almacén 1</label><div class="paso" data-id="dur1" data-min="0" data-max="120"></div></div>
       <div class="campo"><label for="vel">Velocidad normal</label><div class="paso" data-id="vel" data-min="5" data-max="40" data-unidad="km/h"></div></div>
+      <div class="campo"><label for="almParada">Parada del almuerzo</label><select class="sel" id="almParada"></select></div>
+      <div class="campo"><label for="almMin">Duración del almuerzo</label><div class="paso" data-id="almMin" data-min="0" data-max="180"></div></div>
       <div class="campo" style="grid-column:1 / -1"><label for="durTodas">Duración de cada parada (de la 2 a la 14)</label><div class="paso" data-id="durTodas" data-min="0" data-max="120"></div>
         <button class="aplicar" id="aplicar">Aplicar a todas las paradas</button>
         <small>También puedes cambiar cada parada por separado en el itinerario.</small></div>
@@ -130,12 +140,21 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--oro);outline-of
     <ol class="linea" id="linea"></ol>
   </section>
 
+  <section class="exp">
+    <h2>Actualizar la página del recorrido</h2>
+    <p class="muted" style="margin:0 0 10px">Cuando el horario esté listo, genera el texto, cópialo y pégalo en el chat con Claude para cargarlo como horario base.</p>
+    <div class="btns"><button class="pri" id="btnGen">Generar texto</button><button class="sec" id="btnCopiar" hidden>Copiar texto</button></div>
+    <div id="copiado" aria-live="polite"></div>
+    <textarea id="txtExp" readonly hidden aria-label="Texto para actualizar la página"></textarea>
+  </section>
+
   <section>
     <div class="pie">
       <div class="resumen" style="margin:0">
         <span>En movimiento <b id="tMov"></b></span>
         <span>En paradas <b id="tPar"></b></span>
         <span>Instalación <b id="tIns"></b></span>
+        <span>Almuerzo <b id="tAlm"></b></span>
         <span>Distancia <b id="tDist"></b></span>
       </div>
       <button id="reset">Restablecer valores</button>
@@ -149,7 +168,7 @@ const NOMBRES=D.names, LENS=D.lens, N=NOMBRES.length, NT=LENS.length;
 const LENTO=10;
 const TRANSITO=[7,8];                 // tramos 8 y 9 (índice desde 0)
 const TROCHAS={1:3,3:5,12:14};        // tramo (índice) -> parada a la que ingresa
-const DEF={inicio:'08:00',limite:'16:15',instLlega:3,instSale:2,dur1:15,vel:20,durTodas:12,dur:Array(N).fill(12),trocha:{1:500,3:500,12:500}};
+const DEF={inicio:'08:00',limite:'16:15',instLlega:3,instSale:2,dur1:15,vel:20,durTodas:12,dur:Array(N).fill(12),trocha:{1:500,3:500,12:500},almuerzo:{parada:0,min:45}};
 let C=JSON.parse(JSON.stringify(DEF));
 try{const g=JSON.parse(localStorage.getItem('itin_sdlm')||'null');if(g)C=Object.assign(C,g);}catch(e){}
 function guardar(){try{localStorage.setItem('itin_sdlm',JSON.stringify(C));}catch(e){}}
@@ -178,17 +197,18 @@ function tiempoTramo(i){
   return {min:L/1000/v*60,lento:null};
 }
 function calcular(){
-  const filas=[];let t=aMin(C.inicio),mov=0,par=0,ins=0;
+  const filas=[];let t=aMin(C.inicio),mov=0,par=0,ins=0,almT=0;
   for(let s=0;s<N;s++){
     const llega=t;
     if(s===N-1){filas.push({llega});break;}
     const d=s===0?C.dur1:C.dur[s];
-    const sale=llega+C.instLlega+d+C.instSale;par+=d;ins+=C.instLlega+C.instSale;
+    const alm=C.almuerzo.parada===s+1?C.almuerzo.min:0;
+    const sale=llega+C.instLlega+d+alm+C.instSale;par+=d;ins+=C.instLlega+C.instSale;almT+=alm;
     const tr=tiempoTramo(s);mov+=tr.min;
-    filas.push({llega,sale,d,tr});
+    filas.push({llega,sale,d,alm,tr});
     t=sale+tr.min;
   }
-  return {filas,fin:t,mov,par,ins};
+  return {filas,fin:t,mov,par,ins,almT};
 }
 
 // ajustes generales
@@ -197,6 +217,11 @@ paso(document.querySelector('[data-id=instSale]'),C.instSale,v=>{C.instSale=v;ac
 paso(document.querySelector('[data-id=dur1]'),C.dur1,v=>{C.dur1=v;actualizar();});
 paso(document.querySelector('[data-id=vel]'),C.vel,v=>{C.vel=v;actualizar();});
 paso(document.querySelector('[data-id=durTodas]'),C.durTodas,v=>{C.durTodas=v;guardar();});
+if(!C.almuerzo)C.almuerzo={parada:0,min:45};
+const almSel=$('almParada');
+almSel.innerHTML='<option value="0">Sin almuerzo</option>'+NOMBRES.slice(0,N-1).map((n,i)=>'<option value="'+(i+1)+'">'+(i+1)+'. '+n+'</option>').join('');
+almSel.value=C.almuerzo.parada;almSel.onchange=()=>{C.almuerzo.parada=+almSel.value;actualizar();};
+paso(document.querySelector('[data-id=almMin]'),C.almuerzo.min,v=>{C.almuerzo.min=v;actualizar();});
 $('inicio').value=C.inicio;$('limite').value=C.limite;
 $('inicio').onchange=e=>{if(e.target.value){C.inicio=e.target.value;actualizar();}};
 $('limite').onchange=e=>{if(e.target.value){C.limite=e.target.value;actualizar();}};
@@ -232,17 +257,54 @@ function actualizar(){
   $('estado').textContent=ok?'Dentro del horario, sobran '+dur(dif):'Fuera de rango: se pasa por '+dur(-dif);
   $('rInicio').textContent=hora(aMin(C.inicio));$('rSale').textContent=hora(R.filas[0].sale);$('rLimite').textContent=hora(lim);
   R.filas.forEach((f,s)=>{
-    if(s===0)horasEls[s].innerHTML='<span>Inicio <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span><span class="muted">'+f.d+' min de parada</span>';
+    const almTag=f.alm?'<span class="tag alm">Almuerzo '+f.alm+' min</span>':'';
+    if(s===0)horasEls[s].innerHTML='<span>Inicio <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span><span class="muted">'+f.d+' min de parada</span>'+almTag;
     else if(s===N-1)horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span class="muted">Fin del recorrido</span>';
-    else horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span>';
+    else horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span>'+almTag;
     if(s<N-1){
       const t=tramoEls[s];t.querySelector('.via').className='via'+(f.tr.lento?' lenta':'');
       t.querySelector('.txt').innerHTML='Tramo '+(s+1)+': '+km(LENS[s])+', '+dur(f.tr.min)+(f.tr.lento?' <span class="tag">'+f.tr.lento+'</span>':'');
     }
   });
+  $('tAlm').textContent=R.almT?dur(R.almT):'sin almuerzo';
+  $('txtExp').hidden=true;$('btnCopiar').hidden=true;$('copiado').textContent='';
   $('tMov').textContent=dur(R.mov);$('tPar').textContent=dur(R.par);$('tIns').textContent=dur(R.ins);
   $('tDist').textContent=km(LENS.reduce((a,b)=>a+b,0));
 }
+function textoExport(){
+  const R=calcular();
+  const P={version:1,inicio:C.inicio,instLlega:C.instLlega,instSale:C.instSale,vel:C.vel,lento:LENTO,
+    paradas:NOMBRES.map((_,s)=>s===0?C.dur1:(s===N-1?0:C.dur[s])),
+    almuerzo:{parada:C.almuerzo.parada||null,min:C.almuerzo.min},
+    trochas:Object.fromEntries(Object.keys(TROCHAS).map(i=>[String(+i+1),C.trocha[i]])),
+    transito:TRANSITO.map(i=>i+1),limite:C.limite};
+  const L=[];
+  L.push('Claude, actualiza el horario base del index.html del recorrido con estos parámetros.');
+  L.push('');
+  L.push('Inicio en Almacén 1: '+hora(aMin(C.inicio)));
+  L.push('Instalación: '+C.instLlega+' min al llegar y '+C.instSale+' min al salir');
+  L.push('Velocidad normal: '+C.vel+' km/h. Tramos 8 y 9 y trochas de ingreso a las paradas 3, 5 y 14 a 10 km/h');
+  L.push('Trochas: '+Object.keys(TROCHAS).map(i=>'parada '+TROCHAS[i]+' '+C.trocha[i]+' m').join(', '));
+  L.push('Almuerzo: '+(C.almuerzo.parada?C.almuerzo.min+' min en la parada '+C.almuerzo.parada+' ('+NOMBRES[C.almuerzo.parada-1]+')':'sin almuerzo'));
+  L.push('Llegada programada a Almacén 2: '+hora(R.fin)+' (límite '+hora(aMin(C.limite))+')');
+  L.push('');
+  L.push('Horario por parada:');
+  R.filas.forEach((f,s)=>{
+    if(s===0)L.push('1. '+NOMBRES[0]+': inicio '+hora(f.llega)+', sale '+hora(f.sale)+' ('+f.d+' min de parada'+(f.alm?', almuerzo '+f.alm+' min':'')+')');
+    else if(s===N-1)L.push(N+'. '+NOMBRES[s]+': llega '+hora(f.llega));
+    else L.push((s+1)+'. '+NOMBRES[s]+': llega '+hora(f.llega)+', sale '+hora(f.sale)+' ('+f.d+' min de parada'+(f.alm?', almuerzo '+f.alm+' min':'')+')');
+  });
+  L.push('');
+  L.push('PARAMETROS_JSON');
+  L.push(JSON.stringify(P));
+  return L.join('\n');
+}
+$('btnGen').onclick=()=>{const t=$('txtExp');t.value=textoExport();t.hidden=false;$('btnCopiar').hidden=false;$('copiado').textContent='';};
+$('btnCopiar').onclick=async()=>{
+  const t=$('txtExp');
+  try{await navigator.clipboard.writeText(t.value);$('copiado').textContent='Texto copiado. Pégalo en el chat con Claude.';}
+  catch(e){t.focus();t.select();try{document.execCommand('copy');$('copiado').textContent='Texto copiado. Pégalo en el chat con Claude.';}catch(e2){$('copiado').textContent='Mantén presionado el texto y elige Copiar.';}}
+};
 $('reset').onclick=()=>{if(!confirm('¿Volver a los valores iniciales?'))return;try{localStorage.removeItem('itin_sdlm');}catch(e){}location.reload();};
 actualizar();
 })();
