@@ -101,12 +101,13 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--oro);outline-of
 </div></header>
 <main>
   <section class="veredicto ok" id="veredicto" aria-live="polite">
-    <div class="fin-l">Llegada a Almacén 2</div>
+    <div class="fin-l">Fin de la ceremonia en Almacén 2</div>
     <div class="fin" id="fin">--:--</div>
     <span class="estado" id="estado"></span>
     <div class="resumen">
       <span>Inicio <b id="rInicio"></b></span>
       <span>Sale de Almacén 1 <b id="rSale"></b></span>
+      <span>Llega a Almacén 2 <b id="rLlega"></b></span>
       <span>Límite <b id="rLimite"></b></span>
     </div>
   </section>
@@ -122,7 +123,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--oro);outline-of
       <div class="campo"><label for="vel">Velocidad normal</label><div class="paso" data-id="vel" data-min="5" data-max="40" data-unidad="km/h"></div></div>
       <div class="campo"><label for="almParada">Parada del almuerzo</label><select class="sel" id="almParada"></select></div>
       <div class="campo"><label for="almMin">Duración del almuerzo</label><div class="paso" data-id="almMin" data-min="0" data-max="180"></div></div>
-      <div class="campo" style="grid-column:1 / -1"><label for="durTodas">Duración de cada parada (de la 2 a la 14)</label><div class="paso" data-id="durTodas" data-min="0" data-max="120"></div>
+      <div class="campo" style="grid-column:1 / -1"><label for="durTodas">Duración de cada parada (de la 2 a la 14; la ceremonia final se ajusta aparte)</label><div class="paso" data-id="durTodas" data-min="0" data-max="120"></div>
         <button class="aplicar" id="aplicar">Aplicar a todas las paradas</button>
         <small>También puedes cambiar cada parada por separado en el itinerario.</small></div>
     </div>
@@ -168,7 +169,8 @@ const NOMBRES=D.names, LENS=D.lens, N=NOMBRES.length, NT=LENS.length;
 const LENTO=10;
 const TRANSITO=[7,8];                 // tramos 8 y 9 (índice desde 0)
 const TROCHAS={1:3,3:5,12:14};        // tramo (índice) -> parada a la que ingresa
-const DEF={inicio:'08:00',limite:'16:15',instLlega:3,instSale:2,dur1:15,vel:20,durTodas:12,dur:Array(N).fill(12),trocha:{1:500,3:500,12:500},almuerzo:{parada:0,min:45}};
+const DEF0={inicio:'08:00',limite:'16:15',instLlega:3,instSale:2,dur1:15,vel:20,durTodas:12,dur:Array(N).fill(12),trocha:{1:500,3:500,12:500},almuerzo:{parada:0,min:45}};
+const DEF=DEF0;DEF.dur[N-1]=20; // ceremonia final en Almacén 2
 let C=JSON.parse(JSON.stringify(DEF));
 try{const g=JSON.parse(localStorage.getItem('itin_sdlm')||'null');if(g)C=Object.assign(C,g);}catch(e){}
 function guardar(){try{localStorage.setItem('itin_sdlm',JSON.stringify(C));}catch(e){}}
@@ -200,7 +202,9 @@ function calcular(){
   const filas=[];let t=aMin(C.inicio),mov=0,par=0,ins=0,almT=0;
   for(let s=0;s<N;s++){
     const llega=t;
-    if(s===N-1){filas.push({llega});break;}
+    if(s===N-1){ // Almacén 2: ceremonia final, como una parada más
+      const d=C.dur[s];const fin=llega+C.instLlega+d+C.instSale;
+      par+=d;ins+=C.instLlega+C.instSale;filas.push({llega,sale:fin,d,alm:0,final:true});t=fin;break;}
     const d=s===0?C.dur1:C.dur[s];
     const alm=C.almuerzo.parada===s+1?C.almuerzo.min:0;
     const sale=llega+C.instLlega+d+alm+C.instSale;par+=d;ins+=C.instLlega+C.instSale;almT+=alm;
@@ -208,7 +212,7 @@ function calcular(){
     filas.push({llega,sale,d,alm,tr});
     t=sale+tr.min;
   }
-  return {filas,fin:t,mov,par,ins,almT};
+  return {filas,fin:t,llegaFin:filas[N-1].llega,mov,par,ins,almT};
 }
 
 // ajustes generales
@@ -242,9 +246,9 @@ Object.keys(TROCHAS).forEach(i=>{
 const linea=$('linea');const durInputs=[],horasEls=[],tramoEls=[];
 for(let s=0;s<N;s++){
   const li=document.createElement('li');li.className='parada'+(s===0||s===N-1?' extremo':'');
-  li.innerHTML='<span class="num">'+(s+1)+'</span><div><div class="p-nom">'+NOMBRES[s]+'</div><div class="p-horas"></div>'+(s>0&&s<N-1?'<div class="p-dur"><div class="paso"></div><span>de parada</span></div>':'')+'</div>';
+  li.innerHTML='<span class="num">'+(s+1)+'</span><div><div class="p-nom">'+NOMBRES[s]+'</div><div class="p-horas"></div>'+(s>0?'<div class="p-dur"><div class="paso"></div><span>'+(s===N-1?'de ceremonia':'de parada')+'</span></div>':'')+'</div>';
   linea.appendChild(li);horasEls[s]=li.querySelector('.p-horas');
-  if(s>0&&s<N-1)durInputs[s]=paso(li.querySelector('.paso'),C.dur[s],v=>{C.dur[s]=v;actualizar();},{min:0,max:120,label:'Minutos de parada en '+NOMBRES[s]});
+  if(s>0)durInputs[s]=paso(li.querySelector('.paso'),C.dur[s],v=>{C.dur[s]=v;actualizar();},{min:0,max:180,label:(s===N-1?'Minutos de ceremonia en ':'Minutos de parada en ')+NOMBRES[s]});
   if(s<N-1){const tr=document.createElement('li');tr.className='tramo';tr.innerHTML='<span class="via"></span><div class="txt"></div>';linea.appendChild(tr);tramoEls[s]=tr;}
 }
 
@@ -255,11 +259,11 @@ function actualizar(){
   const ok=dif>=0;
   $('veredicto').className='veredicto '+(ok?'ok':'mal');
   $('estado').textContent=ok?'Dentro del horario, sobran '+dur(dif):'Fuera de rango: se pasa por '+dur(-dif);
-  $('rInicio').textContent=hora(aMin(C.inicio));$('rSale').textContent=hora(R.filas[0].sale);$('rLimite').textContent=hora(lim);
+  $('rInicio').textContent=hora(aMin(C.inicio));$('rSale').textContent=hora(R.filas[0].sale);$('rLimite').textContent=hora(lim);$('rLlega').textContent=hora(R.llegaFin);
   R.filas.forEach((f,s)=>{
     const almTag=f.alm?'<span class="tag alm">Almuerzo '+f.alm+' min</span>':'';
     if(s===0)horasEls[s].innerHTML='<span>Inicio <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span><span class="muted">'+f.d+' min de parada</span>'+almTag;
-    else if(s===N-1)horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span class="muted">Fin del recorrido</span>';
+    else if(s===N-1)horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span>Fin <b>'+hora(f.sale)+'</b></span><span class="muted">Ceremonia de cierre</span>';
     else horasEls[s].innerHTML='<span>Llega <b>'+hora(f.llega)+'</b></span><span>Sale <b>'+hora(f.sale)+'</b></span>'+almTag;
     if(s<N-1){
       const t=tramoEls[s];t.querySelector('.via').className='via'+(f.tr.lento?' lenta':'');
@@ -274,7 +278,7 @@ function actualizar(){
 function textoExport(){
   const R=calcular();
   const P={version:1,inicio:C.inicio,instLlega:C.instLlega,instSale:C.instSale,vel:C.vel,lento:LENTO,
-    paradas:NOMBRES.map((_,s)=>s===0?C.dur1:(s===N-1?0:C.dur[s])),
+    paradas:NOMBRES.map((_,s)=>s===0?C.dur1:C.dur[s]),
     almuerzo:{parada:C.almuerzo.parada||null,min:C.almuerzo.min},
     trochas:Object.fromEntries(Object.keys(TROCHAS).map(i=>[String(+i+1),C.trocha[i]])),
     transito:TRANSITO.map(i=>i+1),limite:C.limite};
@@ -286,12 +290,12 @@ function textoExport(){
   L.push('Velocidad normal: '+C.vel+' km/h. Tramos 8 y 9 y trochas de ingreso a las paradas 3, 5 y 14 a 10 km/h');
   L.push('Trochas: '+Object.keys(TROCHAS).map(i=>'parada '+TROCHAS[i]+' '+C.trocha[i]+' m').join(', '));
   L.push('Almuerzo: '+(C.almuerzo.parada?C.almuerzo.min+' min en la parada '+C.almuerzo.parada+' ('+NOMBRES[C.almuerzo.parada-1]+')':'sin almuerzo'));
-  L.push('Llegada programada a Almacén 2: '+hora(R.fin)+' (límite '+hora(aMin(C.limite))+')');
+  L.push('Llegada programada a Almacén 2: '+hora(R.llegaFin)+', ceremonia de '+C.dur[N-1]+' min, fin '+hora(R.fin)+' (límite '+hora(aMin(C.limite))+')');
   L.push('');
   L.push('Horario por parada:');
   R.filas.forEach((f,s)=>{
     if(s===0)L.push('1. '+NOMBRES[0]+': inicio '+hora(f.llega)+', sale '+hora(f.sale)+' ('+f.d+' min de parada'+(f.alm?', almuerzo '+f.alm+' min':'')+')');
-    else if(s===N-1)L.push(N+'. '+NOMBRES[s]+': llega '+hora(f.llega));
+    else if(s===N-1)L.push(N+'. '+NOMBRES[s]+': llega '+hora(f.llega)+', fin '+hora(f.sale)+' ('+f.d+' min de ceremonia)');
     else L.push((s+1)+'. '+NOMBRES[s]+': llega '+hora(f.llega)+', sale '+hora(f.sale)+' ('+f.d+' min de parada'+(f.alm?', almuerzo '+f.alm+' min':'')+')');
   });
   L.push('');
