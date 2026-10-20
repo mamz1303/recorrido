@@ -164,16 +164,16 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--oro);outline-of
 </main>
 <script>
 (function(){
-const D={"lens": [2542, 2364, 400, 2048, 836, 587, 667, 11190, 316, 3098, 647, 5169, 1778, 7002], "names": ["Almacén 1", "Op. Mina - Vestuario Sur", "Mnto. Mina - TruckShop", "Taller de soldadura", "Mnto. C2 Ex Cosapi", "Gerencia Procesos C2", "Laydown", "Almacén 3", "Gerencia Procesos C1", "Taller TRC C1", "Lab. Químico", "Planta SXEW", "Gerencia Hidro", "Camp. Lixiviación", "Almacén 2"]};
+const D={"lens": [1423, 399, 2207, 3261, 830, 587, 667, 11190, 316, 3098, 647, 5169, 1778, 7002], "names": ["Almacén 1", "Mnto. Mina - TruckShop", "Taller de soldadura", "Op. Mina - Vestuario Sur", "Mnto. C2 Ex Cosapi", "Gerencia Procesos C2", "Laydown", "Almacén 3", "Gerencia Procesos C1", "Taller TRC C1", "Lab. Químico", "Planta SXEW", "Gerencia Hidro", "Camp. Lixiviación", "Almacén 2"]};
 const NOMBRES=D.names, LENS=D.lens, N=NOMBRES.length, NT=LENS.length;
 const LENTO=10;
 const TRANSITO=[7,8];                 // tramos 8 y 9 (índice desde 0)
-const TROCHAS={1:3,3:5,12:14};        // tramo (índice) -> parada a la que ingresa
-const DEF0={inicio:'08:00',limite:'16:15',instLlega:3,instSale:2,dur1:15,vel:20,durTodas:12,dur:Array(N).fill(12),trocha:{1:500,3:500,12:500},almuerzo:{parada:0,min:45}};
+const TROCHAS={0:2,3:5,12:14};        // tramo (índice) -> parada a la que ingresa
+const DEF0={inicio:'08:00',limite:'16:15',instLlega:4,instSale:4,dur1:16,vel:20,durTodas:12,dur:[16,15,12,20,12,12,15,12,12,12,12,12,12,12,20],trocha:{0:500,3:500,12:500},almuerzo:{parada:9,min:30}};
 const DEF=DEF0;DEF.dur[N-1]=20; // ceremonia final en Almacén 2
 let C=JSON.parse(JSON.stringify(DEF));
-try{const g=JSON.parse(localStorage.getItem('itin_sdlm')||'null');if(g)C=Object.assign(C,g);}catch(e){}
-function guardar(){try{localStorage.setItem('itin_sdlm',JSON.stringify(C));}catch(e){}}
+try{const g=JSON.parse(localStorage.getItem('itin_sdlm_v2')||'null');if(g)C=Object.assign(C,g);}catch(e){}
+function guardar(){try{localStorage.setItem('itin_sdlm_v2',JSON.stringify(C));}catch(e){}}
 
 const $=id=>document.getElementById(id);
 const aMin=hhmm=>{const [h,m]=hhmm.split(':').map(Number);return h*60+m;};
@@ -287,7 +287,7 @@ function textoExport(){
   L.push('');
   L.push('Inicio en Almacén 1: '+hora(aMin(C.inicio)));
   L.push('Instalación: '+C.instLlega+' min al llegar y '+C.instSale+' min al salir');
-  L.push('Velocidad normal: '+C.vel+' km/h. Tramos 8 y 9 y trochas de ingreso a las paradas 3, 5 y 14 a 10 km/h');
+  L.push('Velocidad normal: '+C.vel+' km/h. Tramos 8 y 9 y trochas de ingreso a las paradas 2, 5 y 14 a 10 km/h');
   L.push('Trochas: '+Object.keys(TROCHAS).map(i=>'parada '+TROCHAS[i]+' '+C.trocha[i]+' m').join(', '));
   L.push('Almuerzo: '+(C.almuerzo.parada?C.almuerzo.min+' min en la parada '+C.almuerzo.parada+' ('+NOMBRES[C.almuerzo.parada-1]+')':'sin almuerzo'));
   L.push('Llegada programada a Almacén 2: '+hora(R.llegaFin)+', ceremonia de '+C.dur[N-1]+' min, fin '+hora(R.fin)+' (límite '+hora(aMin(C.limite))+')');
@@ -309,7 +309,7 @@ $('btnCopiar').onclick=async()=>{
   try{await navigator.clipboard.writeText(t.value);$('copiado').textContent='Texto copiado. Pégalo en el chat con Claude.';}
   catch(e){t.focus();t.select();try{document.execCommand('copy');$('copiado').textContent='Texto copiado. Pégalo en el chat con Claude.';}catch(e2){$('copiado').textContent='Mantén presionado el texto y elige Copiar.';}}
 };
-$('reset').onclick=()=>{if(!confirm('¿Volver a los valores iniciales?'))return;try{localStorage.removeItem('itin_sdlm');}catch(e){}location.reload();};
+$('reset').onclick=()=>{if(!confirm('¿Volver a los valores iniciales?'))return;try{localStorage.removeItem('itin_sdlm_v2');}catch(e){}location.reload();};
 actualizar();
 })();
 </script>
